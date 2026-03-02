@@ -30,6 +30,28 @@ export default async function SellerOffersPage() {
     )
   }
 
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const role = (me as any)?.role ?? 'user'
+
+  // If you want only admin + sellers (people with listings) to see it:
+  const { count } = await supabase
+    .from('listings')
+    .select('*', { count: 'exact', head: true })
+    .eq('seller_id', user.id)
+
+  if (role !== 'admin' && (count ?? 0) === 0) {
+    return (
+      <div className='py-10 text-sm text-zinc-400'>
+        This page is for sellers. Create a listing first.
+      </div>
+    )
+  }
+
   // Get offers for listings you own
   const { data: offers } = await supabase
     .from('offers')
