@@ -86,7 +86,7 @@ export default async function AdminPage() {
     .select(
       'id,title,category,price,currency,location,cover_image_url,status,is_verified,created_at,seller_id',
     )
-    .in('status', ['approved', 'sold'])
+    .in('status', ['approved', 'in_progress', 'sold'])
     .order('created_at', { ascending: false })
     .limit(80)
 
@@ -94,7 +94,12 @@ export default async function AdminPage() {
     'use server'
     const id = String(formData.get('id') || '')
     const status = String(formData.get('status') || '')
-    if (!id || !['pending', 'approved', 'rejected', 'sold'].includes(status))
+    if (
+      !id ||
+      !['pending', 'approved', 'in_progress', 'rejected', 'sold'].includes(
+        status,
+      )
+    )
       return
 
     const supabase = await supabaseServer()

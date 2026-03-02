@@ -85,6 +85,43 @@ export default async function SellerOffersPage() {
           .eq('listing_id', offer.listing_id)
           .neq('id', id)
       }
+
+      if (status === 'accepted') {
+        const { data: offer } = await supabase
+          .from('offers')
+          .select('listing_id, buyer_id')
+          .eq('id', id)
+          .single()
+
+        if (offer?.listing_id) {
+          // Reject other offers
+          await supabase
+            .from('offers')
+            .update({ status: 'rejected' })
+            .eq('listing_id', offer.listing_id)
+            .neq('id', id)
+
+          // Move listing to in_progress
+          await supabase
+            .from('listings')
+            .update({ status: 'in_progress' })
+            .eq('id', offer.listing_id)
+
+          // Create deal
+          const { data: listing } = await supabase
+            .from('listings')
+            .select('seller_id')
+            .eq('id', offer.listing_id)
+            .single()
+
+          await supabase.from('deals').insert({
+            listing_id: offer.listing_id,
+            offer_id: id,
+            buyer_id: offer.buyer_id,
+            seller_id: listing?.seller_id,
+          })
+        }
+      }
     }
 
     revalidatePath('/dashboard/offers')
