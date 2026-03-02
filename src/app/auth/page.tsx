@@ -76,20 +76,13 @@ export default function AuthPage() {
   }
 
   const onSignup = async () => {
+    if (sLoading) return
     setSLoading(true)
     try {
       if (sPass !== sPass2) throw new Error('Passwords do not match.')
+      const email = sEmail.trim().toLowerCase()
 
-      const email = sEmail.trim()
-
-      // 1) Create account (email + password)
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: sPass,
-      })
-      if (error) throw error
-
-      // 2) Save profile draft locally (we'll write it after OTP verify)
+      // Save everything (including password) temporarily
       const draft = {
         role: 'user',
         full_name: fullName,
@@ -107,18 +100,16 @@ export default function AuthPage() {
         id_number: idNumber,
         source_of_funds: sourceOfFunds,
         annual_income_range: incomeRange,
+        __password: sPass, // store temporarily for set-password after verify
       }
       localStorage.setItem(`lux_signup_profile:${email}`, JSON.stringify(draft))
 
-      // 3) Ensure we are not relying on a session from signUp
-      await supabase.auth.signOut()
-
-      // 4) Send OTP email from Supabase
-      const { error: otpErr } = await supabase.auth.signInWithOtp({
+      // Create user via OTP (Supabase sends the email code)
+      const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { shouldCreateUser: false },
+        options: { shouldCreateUser: true },
       })
-      if (otpErr) throw otpErr
+      if (error) throw error
 
       toast.success('Verification code sent. Check your email.')
       router.push(`/auth/verify?email=${encodeURIComponent(email)}&flow=signup`)
@@ -128,6 +119,7 @@ export default function AuthPage() {
       setSLoading(false)
     }
   }
+
   return (
     <div className='min-h-screen flex items-center justify-center px-4 py-10'>
       <Toaster richColors position='top-right' />

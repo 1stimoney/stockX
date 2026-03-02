@@ -30,28 +30,39 @@ export default function VerifyClient() {
         type: 'email',
       })
 
+      await supabase.auth.getSession()
+      router.replace('/dashboard')
+
       if (error) throw error
 
       // Finalize signup profile
       if (flow === 'signup') {
-        const { data: userData } = await supabase.auth.getUser()
+        const { data: userData, error: uErr } = await supabase.auth.getUser()
+        if (uErr) throw uErr
+
         const user = userData.user
+        if (!user) throw new Error('No user session after verification.')
 
-        if (user) {
-          const raw = localStorage.getItem(`lux_signup_profile:${email}`)
-          if (raw) {
-            const draft = JSON.parse(raw)
+        const raw = localStorage.getItem(`lux_signup_profile:${email}`)
+        if (raw) {
+          const draft = JSON.parse(raw)
+          const password = draft.__password
+          delete draft.__password
 
-            await supabase.from('profiles').upsert({
-              id: user.id,
-              ...draft,
-            })
+          // Save profile
+          const { error: pErr } = await supabase.from('profiles').upsert({
+            id: user.id,
+            ...draft,
+          })
+          if (pErr) throw pErr
 
-            localStorage.removeItem(`lux_signup_profile:${email}`)
-          }
+          // Set password now that the user is verified + signed in
+          const { error: pwErr } = await supabase.auth.updateUser({ password })
+          if (pwErr) throw pwErr
+
+          localStorage.removeItem(`lux_signup_profile:${email}`)
         }
       }
-
       toast.success('Verified ✔')
       router.replace('/dashboard')
     } catch (e: any) {
@@ -71,7 +82,7 @@ export default function VerifyClient() {
 
   return (
     <div className='min-h-screen flex items-center justify-center px-4'>
-      <Toaster richColors />
+      <Toaster richColors position='top-right' />
       <Card className='w-full max-w-md border-white/10 bg-white/5 backdrop-blur'>
         <CardHeader>
           <CardTitle>Email Verification</CardTitle>
