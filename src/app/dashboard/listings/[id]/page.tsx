@@ -6,14 +6,15 @@ import { Button } from '@/components/ui/button'
 export default async function ListingDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   const supabase = await supabaseServer()
+  const { id } = await params
 
   const { data: listing } = await supabase
     .from('listings')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .maybeSingle()
 
   return (
