@@ -37,6 +37,7 @@ export default async function MarketplaceListingPage({
   params: Promise<{ id: string }>
 }) {
   const supabase = await supabaseServer()
+  const { id } = await params
 
   // Only approved listings should be visible here (RLS already enforces this for public).
   const { data: listing } = await supabase
@@ -44,7 +45,7 @@ export default async function MarketplaceListingPage({
     .select(
       'id,seller_id,title,description,category,price,currency,location,status,is_verified,cover_image_url,created_at',
     )
-    .eq('id', (await params).id)
+    .eq('id', id)
     .maybeSingle()
 
   if (!listing) return notFound()

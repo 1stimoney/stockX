@@ -7,7 +7,6 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const supabase = await supabaseServer()
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -25,7 +24,7 @@ export default async function DashboardLayout({
   return (
     <div className='min-h-screen'>
       <div className='mx-auto max-w-6xl px-4 pt-5'>
-        <DashboardTabs role={role} />
+        <DashboardTabs role={role} userId={user?.id ?? ''} />
       </div>
 
       <div className='mx-auto max-w-6xl px-4 pb-28 md:pb-8'>{children}</div>

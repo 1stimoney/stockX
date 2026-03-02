@@ -2,69 +2,66 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Gem, LayoutGrid, PlusCircle, Store, User } from 'lucide-react'
+import {
+  Home,
+  Store,
+  PlusCircle,
+  ListChecks,
+  Bell,
+  Settings,
+} from 'lucide-react'
+import UnreadBadge from '@/components/notifications/unread-badge'
 
-const items = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { href: '/marketplace', label: 'Market', icon: Store },
-  { href: '/sell', label: 'Sell', icon: PlusCircle },
-  { href: '/dashboard/settings', label: 'Profile', icon: User },
-]
-
-export function BottomNav() {
+export default function BottomNav({ userId }: { userId: string | null }) {
   const pathname = usePathname()
 
+  const items = [
+    { href: '/dashboard', label: 'Home', icon: Home },
+    { href: '/marketplace', label: 'Market', icon: Store },
+    { href: '/dashboard/notifications', label: 'Alerts', icon: Bell },
+    { href: '/sell', label: 'Sell', icon: PlusCircle },
+    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  ]
+
   const isActive = (href: string) => {
-    if (href === '/dashboard')
-      return pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+    if (href === '/dashboard') return pathname === '/dashboard'
     return pathname === href || pathname.startsWith(href + '/')
   }
 
   return (
-    <nav className='md:hidden fixed bottom-0 left-0 right-0 z-50'>
-      <div className='mx-auto max-w-6xl px-4 pb-4'>
-        <div className='rounded-3xl border border-white/10 bg-black/50 backdrop-blur-xl shadow-lg'>
-          <div className='grid grid-cols-4 px-2 py-2'>
-            {items.map((it) => {
-              const Active = isActive(it.href)
-              const Icon = it.icon
+    <div className='fixed bottom-4 left-0 right-0 z-50 px-4 md:hidden'>
+      <div className='mx-auto max-w-md rounded-3xl border border-white/10 bg-black/60 backdrop-blur p-2'>
+        <div className='grid grid-cols-5 gap-1'>
+          {items.map((it) => {
+            const Icon = it.icon
+            const active = isActive(it.href)
 
-              return (
-                <Link
-                  key={it.href}
-                  href={it.href}
-                  className={[
-                    'flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition',
-                    Active ? 'bg-white/10' : 'hover:bg-white/5',
-                  ].join(' ')}
-                >
-                  <Icon
-                    className={[
-                      'h-5 w-5',
-                      Active ? 'text-white' : 'text-zinc-300',
-                    ].join(' ')}
-                  />
-                  <span
-                    className={[
-                      'text-[11px]',
-                      Active ? 'text-white' : 'text-zinc-400',
-                    ].join(' ')}
-                  >
-                    {it.label}
-                  </span>
-                </Link>
-              )
-            })}
-          </div>
-
-          <div className='px-4 pb-3 pt-1'>
-            <div className='flex items-center justify-center gap-2 text-[11px] text-zinc-400'>
-              <Gem className='h-3.5 w-3.5' />
-              StockX • Verified Luxury Marketplace
-            </div>
-          </div>
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                className={[
+                  'relative flex flex-col items-center justify-center gap-1 rounded-2xl py-2 text-xs transition',
+                  active
+                    ? 'bg-white/10 text-amber-50'
+                    : 'text-zinc-300 hover:bg-white/5',
+                ].join(' ')}
+              >
+                <div className='relative'>
+                  <Icon className='h-5 w-5' />
+                  {/* Badge on the bell icon */}
+                  {it.href === '/dashboard/notifications' && userId ? (
+                    <span className='absolute -top-2 -right-3'>
+                      <UnreadBadge userId={userId} />
+                    </span>
+                  ) : null}
+                </div>
+                <span className='leading-none'>{it.label}</span>
+              </Link>
+            )
+          })}
         </div>
       </div>
-    </nav>
+    </div>
   )
 }

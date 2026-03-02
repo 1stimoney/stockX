@@ -10,11 +10,19 @@ import {
   HandCoins,
   Settings,
   ShieldCheck,
+  Bell,
 } from 'lucide-react'
+import UnreadBadge from '@/components/notifications/unread-badge'
 
 type Role = 'user' | 'admin'
 
-export default function DashboardTabs({ role }: { role: Role }) {
+export default function DashboardTabs({
+  role,
+  userId,
+}: {
+  role: Role
+  userId: string
+}) {
   const pathname = usePathname()
 
   const items = [
@@ -26,6 +34,12 @@ export default function DashboardTabs({ role }: { role: Role }) {
       show: true,
     },
     { href: '/sell', label: 'Sell', icon: PlusCircle, show: true },
+    {
+      href: '/dashboard/notifications',
+      label: 'Notifications',
+      icon: Bell,
+      show: true,
+    },
     { href: '/marketplace', label: 'Marketplace', icon: Store, show: true },
 
     // ✅ Buyer-side: My Offers (everyone can have this)
@@ -82,6 +96,9 @@ export default function DashboardTabs({ role }: { role: Role }) {
             >
               <Icon className='h-4 w-4' />
               <span className='whitespace-nowrap'>{it.label}</span>
+              {it.href === '/dashboard/notifications' ? (
+                <UnreadBadge userId={userId} />
+              ) : null}{' '}
             </Link>
           )
         })}
