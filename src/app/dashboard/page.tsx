@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { BottomNav } from '@/components/bottom-nav'
 import {
   ShieldCheck,
   Gem,
@@ -374,9 +373,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* ✅ Mobile bottom nav */}
-      <BottomNav />
     </div>
   )
 }

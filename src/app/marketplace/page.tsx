@@ -3,7 +3,6 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { BottomNav } from '@/components/bottom-nav'
 import { Gem, ShieldCheck, Search, Tag, ArrowUpRight } from 'lucide-react'
 
 type Listing = {
@@ -175,8 +174,6 @@ export default async function MarketplacePage({
           </div>
         )}
       </div>
-
-      <BottomNav />
     </div>
   )
 }
