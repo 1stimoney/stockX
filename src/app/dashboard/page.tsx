@@ -80,7 +80,7 @@ export default async function DashboardPage() {
     .limit(6)
 
   return (
-    <div className='min-h-screen px-4 py-6 sm:py-8 pb-28 md:pb-8'>
+    <div className='min-h-screen px-4 py-6 sm:py-8 pb-40 md:pb-8'>
       <div className='mx-auto max-w-6xl space-y-6'>
         {/* Header */}
         <div className='rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-4 sm:p-6'>
