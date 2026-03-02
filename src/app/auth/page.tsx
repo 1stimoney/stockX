@@ -130,7 +130,7 @@ export default function AuthPage() {
   }
   return (
     <div className='min-h-screen flex items-center justify-center px-4 py-10'>
-      <Toaster richColors />
+      <Toaster richColors position='top-right' />
       <div className='w-full max-w-5xl'>
         <div className='mb-6'>
           <div className='flex items-center gap-2'>
