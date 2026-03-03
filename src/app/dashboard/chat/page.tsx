@@ -50,7 +50,7 @@ export default async function ChatInboxPage() {
                     </span>
                   </div>
                 </div>
-                <Badge className='bg-white/10 border border-white/10'>
+                <Badge className='bg-white/10 border border-white/10 text-zinc-300'>
                   Open
                 </Badge>
               </div>
