@@ -5,13 +5,16 @@ import { supabaseBrowser } from '@/lib/supabase/browser'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Toaster, toast } from 'sonner'
-import { Loader2, Send } from 'lucide-react'
+import { Copy, Loader2, Send } from 'lucide-react'
 
 type Msg = {
   id: string
   sender_id: string
   body: string
   created_at: string
+  type?: 'text' | 'payment_request'
+  data?: any
+  is_system?: boolean
 }
 
 export default function ChatThread({
@@ -23,7 +26,9 @@ export default function ChatThread({
   offerAmount,
   offerCurrency,
   offerMessage,
+  buyerId, // ✅ NEW
   initialMessages,
+  startPayment,
 }: {
   conversationId: string
   dealStatus: string
@@ -33,7 +38,9 @@ export default function ChatThread({
   offerAmount: number | null
   offerCurrency: string | null
   offerMessage: string | null
+  buyerId: string // ✅ NEW
   initialMessages: Msg[]
+  startPayment: (formData: FormData) => Promise<void>
 }) {
   const supabase = useMemo(() => supabaseBrowser(), [])
   const [messages, setMessages] = useState<Msg[]>(initialMessages)
@@ -42,7 +49,7 @@ export default function ChatThread({
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
-  const chatLocked = dealStatus === 'cancelled' // keep simple for MVP
+  const chatLocked = dealStatus === 'cancelled' // MVP rule
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setMe(data.user?.id ?? null))
@@ -83,6 +90,7 @@ export default function ChatThread({
     if (sending) return
     if (chatLocked)
       return toast.error('This deal is cancelled. Chat is locked.')
+
     const body = text.trim()
     if (!body) return
 
@@ -96,6 +104,7 @@ export default function ChatThread({
         conversation_id: conversationId,
         sender_id: uid,
         body,
+        type: 'text',
       })
       if (error) throw error
 
@@ -107,11 +116,21 @@ export default function ChatThread({
     }
   }
 
+  const copy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      toast.success('Copied')
+    } catch {
+      toast.error('Copy failed')
+    }
+  }
+
   return (
     <div className='rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden'>
       <Toaster richColors position='top-right' />
 
-      <div className='p-4 sm:p-5 border-b border-white/10 flex flex-col gap-2'>
+      {/* Header */}
+      <div className='p-4 sm:p-5 border-b border-white/10 flex flex-col gap-3'>
         <div className='flex items-start justify-between gap-3'>
           <div className='min-w-0'>
             <div className='text-sm font-medium truncate'>{listingTitle}</div>
@@ -141,6 +160,54 @@ export default function ChatThread({
           </div>
         </div>
 
+        {/* Buyer payment actions */}
+        {me && buyerId === me && dealStatus === 'awaiting_payment' ? (
+          <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
+            <div className='text-sm font-medium'>Payment</div>
+            <div className='mt-1 text-xs text-zinc-400'>
+              Choose how you want to pay. A payment instruction will be posted
+              in this chat for both sides.
+            </div>
+
+            <div className='mt-3 flex flex-wrap gap-2'>
+              <form action={startPayment}>
+                <input type='hidden' name='currency' value='BTC' />
+                <input type='hidden' name='network' value='BTC' />
+                <Button
+                  className='bg-white text-black hover:bg-zinc-200'
+                  size='sm'
+                >
+                  Start BTC payment
+                </Button>
+              </form>
+
+              <form action={startPayment}>
+                <input type='hidden' name='currency' value='USDT' />
+                <input type='hidden' name='network' value='TRC20' />
+                <Button
+                  variant='outline'
+                  className='border-white/15 bg-white/5 hover:bg-white/10'
+                  size='sm'
+                >
+                  Start USDT (TRC20)
+                </Button>
+              </form>
+
+              <form action={startPayment}>
+                <input type='hidden' name='currency' value='USDT' />
+                <input type='hidden' name='network' value='ERC20' />
+                <Button
+                  variant='outline'
+                  className='border-white/15 bg-white/5 hover:bg-white/10'
+                  size='sm'
+                >
+                  Start USDT (ERC20)
+                </Button>
+              </form>
+            </div>
+          </div>
+        ) : null}
+
         {offerMessage ? (
           <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
             <div className='text-[11px] text-zinc-400'>Offer note</div>
@@ -150,6 +217,8 @@ export default function ChatThread({
           </div>
         ) : null}
       </div>
+
+      {/* Messages */}
       <div className='p-4 sm:p-5 h-[55vh] overflow-y-auto space-y-2 bg-black/10'>
         {messages.length === 0 ? (
           <div className='text-sm text-zinc-400'>
@@ -157,6 +226,86 @@ export default function ChatThread({
           </div>
         ) : (
           messages.map((m) => {
+            // ✅ Payment card
+            if (m.type === 'payment_request') {
+              const d = m.data || {}
+              const amountLine =
+                d.amount_due && d.offer_currency
+                  ? `${d.amount_due} ${d.offer_currency}`
+                  : 'the agreed amount'
+
+              const payLine =
+                d.pay_currency && d.pay_network
+                  ? `${d.pay_currency} (${d.pay_network})`
+                  : 'crypto'
+
+              return (
+                <div key={m.id} className='flex justify-center'>
+                  <div className='w-full max-w-xl rounded-3xl border border-white/10 bg-black/30 p-4'>
+                    <div className='flex items-start justify-between gap-3'>
+                      <div>
+                        <div className='text-sm font-medium'>Make payment</div>
+                        <div className='mt-1 text-xs text-zinc-400'>
+                          Pay{' '}
+                          <span className='text-zinc-200 font-medium'>
+                            {amountLine}
+                          </span>{' '}
+                          using{' '}
+                          <span className='text-zinc-200 font-medium'>
+                            {payLine}
+                          </span>
+                          .
+                        </div>
+                      </div>
+                      {d.address ? (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          className='border-white/15 bg-white/5 hover:bg-white/10'
+                          onClick={() => copy(String(d.address))}
+                        >
+                          <Copy className='h-4 w-4' />
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    <div className='mt-3 rounded-2xl border border-white/10 bg-black/20 p-3'>
+                      <div className='text-[11px] text-zinc-400'>
+                        Wallet address
+                      </div>
+                      <div className='mt-1 text-sm text-zinc-100 break-all'>
+                        {d.address ?? '—'}
+                      </div>
+                    </div>
+
+                    <div className='mt-3 text-xs text-zinc-400 space-y-1'>
+                      <div>• Send exactly the amount shown.</div>
+                      {d.pay_network ? (
+                        <div>
+                          • Use the correct network ({String(d.pay_network)}).
+                          Wrong network = lost funds.
+                        </div>
+                      ) : (
+                        <div>
+                          • Use the correct network. Wrong network = lost funds.
+                        </div>
+                      )}
+                      <div>
+                        • After sending, reply here with your transaction hash
+                        (TxID).
+                      </div>
+                    </div>
+
+                    <div className='mt-3 text-[11px] text-zinc-500'>
+                      Posted {new Date(m.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            // Normal text bubble
             const mine = me && m.sender_id === me
             return (
               <div
@@ -185,6 +334,7 @@ export default function ChatThread({
         <div ref={bottomRef} />
       </div>
 
+      {/* Composer */}
       <div className='p-3 sm:p-4 border-t border-white/10 bg-black/10'>
         <div className='flex gap-2'>
           <Input
