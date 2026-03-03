@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabaseBrowser } from '@/lib/supabase/browser'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { Toaster, toast } from 'sonner'
 import { Copy, Loader2, Send } from 'lucide-react'
 
@@ -17,49 +18,37 @@ type Msg = {
   is_system?: boolean
 }
 
-export default function ChatThread({
+export default function Thread({
+  meId,
+  role,
   conversationId,
-  dealStatus,
-  listingTitle,
-  askingPrice,
-  askingCurrency,
-  offerAmount,
-  offerCurrency,
-  offerMessage,
-  buyerId, // ✅ NEW
+  convo,
+  offer,
   initialMessages,
   startPayment,
-}: {
-  conversationId: string
-  dealStatus: string
-  listingTitle: string
-  askingPrice: number | null
-  askingCurrency: string | null
-  offerAmount: number | null
-  offerCurrency: string | null
-  offerMessage: string | null
-  buyerId: string // ✅ NEW
-  initialMessages: Msg[]
-  startPayment: (formData: FormData) => Promise<void>
-}) {
+  submitTxHash,
+  adminSetDealStatus,
+}: any) {
   const supabase = useMemo(() => supabaseBrowser(), [])
   const [messages, setMessages] = useState<Msg[]>(initialMessages)
-  const [me, setMe] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [tx, setTx] = useState('')
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
-  const chatLocked = dealStatus === 'cancelled' // MVP rule
+  const deal = convo?.deal
+  const listing = convo?.listing
+  const dealStatus: string = deal?.status ?? 'awaiting_payment'
+  const buyerId: string = convo?.buyer_id
+  const isBuyer = meId === buyerId
+  const isAdmin = role === 'admin'
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setMe(data.user?.id ?? null))
-  }, [supabase])
+  const chatLocked = dealStatus === 'cancelled'
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
-  // Realtime: listen for new messages
   useEffect(() => {
     const channel = supabase
       .channel(`chat-${conversationId}`)
@@ -90,24 +79,18 @@ export default function ChatThread({
     if (sending) return
     if (chatLocked)
       return toast.error('This deal is cancelled. Chat is locked.')
-
     const body = text.trim()
     if (!body) return
 
     setSending(true)
     try {
-      const { data } = await supabase.auth.getUser()
-      const uid = data.user?.id
-      if (!uid) return toast.error('Please login again.')
-
       const { error } = await supabase.from('messages').insert({
         conversation_id: conversationId,
-        sender_id: uid,
+        sender_id: meId,
         body,
         type: 'text',
       })
       if (error) throw error
-
       setText('')
     } catch (e: any) {
       toast.error(e?.message || 'Failed to send.')
@@ -125,27 +108,39 @@ export default function ChatThread({
     }
   }
 
+  const statusBadge = dealStatus.replaceAll('_', ' ')
+
   return (
     <div className='rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden'>
       <Toaster richColors position='top-right' />
 
-      {/* Header */}
-      <div className='p-4 sm:p-5 border-b border-white/10 flex flex-col gap-3'>
+      {/* Deal Panel */}
+      <div className='p-4 sm:p-5 border-b border-white/10 space-y-3'>
         <div className='flex items-start justify-between gap-3'>
           <div className='min-w-0'>
-            <div className='text-sm font-medium truncate'>{listingTitle}</div>
-            <div className='text-xs text-zinc-400 capitalize'>
-              Deal status: {dealStatus.replaceAll('_', ' ')}
+            <div className='text-sm font-medium truncate'>
+              {listing?.title ?? 'Deal chat'}
+            </div>
+            <div className='mt-1 flex flex-wrap items-center gap-2'>
+              <Badge className='bg-white/10 border border-white/10 capitalize'>
+                {statusBadge}
+              </Badge>
+              {deal?.buyer_tx_hash ? (
+                <Badge className='bg-white/10 border border-white/10 text-amber-50'>
+                  Tx submitted
+                </Badge>
+              ) : null}
             </div>
           </div>
         </div>
 
+        {/* Pricing summary */}
         <div className='grid gap-2 sm:grid-cols-2'>
           <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
             <div className='text-[11px] text-zinc-400'>Asking price</div>
             <div className='mt-1 text-sm font-medium text-zinc-100'>
-              {askingPrice && askingCurrency
-                ? formatMoney(askingPrice, askingCurrency)
+              {listing?.price && listing?.currency
+                ? formatMoney(listing.price, listing.currency)
                 : '—'}
             </div>
           </div>
@@ -153,20 +148,20 @@ export default function ChatThread({
           <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
             <div className='text-[11px] text-zinc-400'>Accepted offer</div>
             <div className='mt-1 text-sm font-medium text-zinc-100'>
-              {offerAmount && offerCurrency
-                ? formatMoney(offerAmount, offerCurrency)
+              {offer?.amount && offer?.currency
+                ? formatMoney(offer.amount, offer.currency)
                 : '—'}
             </div>
           </div>
         </div>
 
-        {/* Buyer payment actions */}
-        {me && buyerId === me && dealStatus === 'awaiting_payment' ? (
+        {/* Buyer Payment controls */}
+        {isBuyer && dealStatus === 'awaiting_payment' ? (
           <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
             <div className='text-sm font-medium'>Payment</div>
             <div className='mt-1 text-xs text-zinc-400'>
-              Choose how you want to pay. A payment instruction will be posted
-              in this chat for both sides.
+              Choose payment method. A payment instruction will be posted in
+              chat.
             </div>
 
             <div className='mt-3 flex flex-wrap gap-2'>
@@ -208,11 +203,95 @@ export default function ChatThread({
           </div>
         ) : null}
 
-        {offerMessage ? (
+        {/* Buyer Tx Hash submission */}
+        {isBuyer &&
+        (dealStatus === 'awaiting_payment' ||
+          dealStatus === 'payment_submitted') ? (
           <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
-            <div className='text-[11px] text-zinc-400'>Offer note</div>
-            <div className='mt-1 text-sm text-zinc-200 whitespace-pre-wrap break-words'>
-              {offerMessage}
+            <div className='text-sm font-medium'>Transaction Hash (TxID)</div>
+            <div className='mt-1 text-xs text-zinc-400'>
+              After you send crypto, paste the TxID here so admin can verify.
+            </div>
+
+            <form action={submitTxHash} className='mt-3 flex gap-2'>
+              <Input
+                name='tx'
+                value={tx}
+                onChange={(e) => setTx(e.target.value)}
+                placeholder='Paste TxID / hash...'
+                className='bg-black/20 border-white/10'
+              />
+              <Button
+                className='bg-white text-black hover:bg-zinc-200'
+                type='submit'
+              >
+                Submit
+              </Button>
+            </form>
+
+            {deal?.buyer_tx_hash ? (
+              <div className='mt-2 text-xs text-zinc-400 break-all'>
+                Submitted:{' '}
+                <span className='text-zinc-200'>{deal.buyer_tx_hash}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Admin controls */}
+        {isAdmin ? (
+          <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
+            <div className='text-sm font-medium'>Admin controls</div>
+            <div className='mt-1 text-xs text-zinc-400'>
+              Update deal status. Completed → listing sold. Cancelled → listing
+              approved.
+            </div>
+
+            {deal?.buyer_tx_hash ? (
+              <div className='mt-2 text-xs text-zinc-400 break-all'>
+                TxID:{' '}
+                <span className='text-zinc-200'>{deal.buyer_tx_hash}</span>
+              </div>
+            ) : null}
+
+            <div className='mt-3 flex flex-wrap gap-2'>
+              <form action={adminSetDealStatus}>
+                <input type='hidden' name='status' value='payment_received' />
+                <Button
+                  className='bg-white text-black hover:bg-zinc-200'
+                  size='sm'
+                >
+                  Mark payment received
+                </Button>
+              </form>
+
+              <form action={adminSetDealStatus}>
+                <input type='hidden' name='status' value='transfer_initiated' />
+                <Button
+                  variant='outline'
+                  className='border-white/15 bg-white/5 hover:bg-white/10'
+                  size='sm'
+                >
+                  Transfer initiated
+                </Button>
+              </form>
+
+              <form action={adminSetDealStatus}>
+                <input type='hidden' name='status' value='completed' />
+                <Button
+                  className='bg-white text-black hover:bg-zinc-200'
+                  size='sm'
+                >
+                  Complete deal
+                </Button>
+              </form>
+
+              <form action={adminSetDealStatus}>
+                <input type='hidden' name='status' value='cancelled' />
+                <Button variant='destructive' size='sm'>
+                  Cancel
+                </Button>
+              </form>
             </div>
           </div>
         ) : null}
@@ -226,19 +305,8 @@ export default function ChatThread({
           </div>
         ) : (
           messages.map((m) => {
-            // ✅ Payment card
             if (m.type === 'payment_request') {
               const d = m.data || {}
-              const amountLine =
-                d.amount_due && d.offer_currency
-                  ? `${d.amount_due} ${d.offer_currency}`
-                  : 'the agreed amount'
-
-              const payLine =
-                d.pay_currency && d.pay_network
-                  ? `${d.pay_currency} (${d.pay_network})`
-                  : 'crypto'
-
               return (
                 <div key={m.id} className='flex justify-center'>
                   <div className='w-full max-w-xl rounded-3xl border border-white/10 bg-black/30 p-4'>
@@ -248,11 +316,11 @@ export default function ChatThread({
                         <div className='mt-1 text-xs text-zinc-400'>
                           Pay{' '}
                           <span className='text-zinc-200 font-medium'>
-                            {amountLine}
+                            {d.amount_due} {d.offer_currency}
                           </span>{' '}
                           using{' '}
                           <span className='text-zinc-200 font-medium'>
-                            {payLine}
+                            {d.pay_currency} ({d.pay_network})
                           </span>
                           .
                         </div>
@@ -281,32 +349,18 @@ export default function ChatThread({
 
                     <div className='mt-3 text-xs text-zinc-400 space-y-1'>
                       <div>• Send exactly the amount shown.</div>
-                      {d.pay_network ? (
-                        <div>
-                          • Use the correct network ({String(d.pay_network)}).
-                          Wrong network = lost funds.
-                        </div>
-                      ) : (
-                        <div>
-                          • Use the correct network. Wrong network = lost funds.
-                        </div>
-                      )}
                       <div>
-                        • After sending, reply here with your transaction hash
-                        (TxID).
+                        • Use the correct network ({String(d.pay_network)}).
+                        Wrong network = lost funds.
                       </div>
-                    </div>
-
-                    <div className='mt-3 text-[11px] text-zinc-500'>
-                      Posted {new Date(m.created_at).toLocaleString()}
+                      <div>• After sending, submit your TxID above.</div>
                     </div>
                   </div>
                 </div>
               )
             }
 
-            // Normal text bubble
-            const mine = me && m.sender_id === me
+            const mine = m.sender_id === meId
             return (
               <div
                 key={m.id}
@@ -318,6 +372,7 @@ export default function ChatThread({
                     mine
                       ? 'bg-white/10 border-white/10 text-zinc-100'
                       : 'bg-black/30 border-white/10 text-zinc-100',
+                    m.is_system ? 'opacity-90' : '',
                   ].join(' ')}
                 >
                   <div className='whitespace-pre-wrap break-words'>
