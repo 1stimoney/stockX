@@ -39,13 +39,13 @@ export default async function ChatThreadPage({
         </Button>
 
         <div className='text-sm text-zinc-400 truncate'>
-          {convo.listings?.[0]?.title ?? 'Chat'}
+          {convo.listings?.title ?? 'Chat'}
         </div>
       </div>
 
       <ChatThread
         conversationId={id}
-        dealStatus={(convo.deals?.[0].status ?? 'awaiting_payment') as string}
+        dealStatus={(convo.deals?.status ?? 'awaiting_payment') as string}
         initialMessages={initial ?? []}
       />
     </div>
