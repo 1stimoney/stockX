@@ -11,6 +11,7 @@ import {
   Settings,
   ShieldCheck,
   Bell,
+  MessageCircle,
 } from 'lucide-react'
 import UnreadBadge from '@/components/notifications/unread-badge'
 
@@ -34,6 +35,7 @@ export default function DashboardTabs({
       show: true,
     },
     { href: '/sell', label: 'Sell', icon: PlusCircle, show: true },
+    { href: '/dashboard/chat', label: 'Chat', icon: MessageCircle, show: true },
     {
       href: '/dashboard/notifications',
       label: 'Notifications',
