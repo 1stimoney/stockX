@@ -18,25 +18,26 @@ export default async function ChatThreadPage({
     .from('conversations')
     .select(
       `
+    id,
+    buyer_id,
+    seller_id,
+    listing_id,
+    deal_id,
+    listing:listings (
       id,
-      listing_id,
-      deal_id,
-      listing:listings (
-        id,
-        title,
-        price,
-        currency
-      ),
-      deal:deals (
-        id,
-        status,
-        offer_id
-      )
-    `,
+      title,
+      price,
+      currency
+    ),
+    deal:deals (
+      id,
+      status,
+      offer_id
+    )
+  `,
     )
     .eq('id', id)
     .maybeSingle()
-
   if (!convo) return notFound()
 
   // Pull the accepted offer (from deal.offer_id)
