@@ -17,10 +17,22 @@ type Msg = {
 export default function ChatThread({
   conversationId,
   dealStatus,
+  listingTitle,
+  askingPrice,
+  askingCurrency,
+  offerAmount,
+  offerCurrency,
+  offerMessage,
   initialMessages,
 }: {
   conversationId: string
   dealStatus: string
+  listingTitle: string
+  askingPrice: number | null
+  askingCurrency: string | null
+  offerAmount: number | null
+  offerCurrency: string | null
+  offerMessage: string | null
   initialMessages: Msg[]
 }) {
   const supabase = useMemo(() => supabaseBrowser(), [])
@@ -97,15 +109,47 @@ export default function ChatThread({
 
   return (
     <div className='rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden'>
-      <Toaster richColors />
+      <Toaster richColors position='top-right' />
 
-      <div className='p-4 sm:p-5 border-b border-white/10 flex items-center justify-between gap-3'>
-        <div className='text-sm font-medium'>Deal chat</div>
-        <div className='text-xs text-zinc-400 capitalize'>
-          Status: {dealStatus.replaceAll('_', ' ')}
+      <div className='p-4 sm:p-5 border-b border-white/10 flex flex-col gap-2'>
+        <div className='flex items-start justify-between gap-3'>
+          <div className='min-w-0'>
+            <div className='text-sm font-medium truncate'>{listingTitle}</div>
+            <div className='text-xs text-zinc-400 capitalize'>
+              Deal status: {dealStatus.replaceAll('_', ' ')}
+            </div>
+          </div>
         </div>
-      </div>
 
+        <div className='grid gap-2 sm:grid-cols-2'>
+          <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
+            <div className='text-[11px] text-zinc-400'>Asking price</div>
+            <div className='mt-1 text-sm font-medium text-zinc-100'>
+              {askingPrice && askingCurrency
+                ? formatMoney(askingPrice, askingCurrency)
+                : '—'}
+            </div>
+          </div>
+
+          <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
+            <div className='text-[11px] text-zinc-400'>Accepted offer</div>
+            <div className='mt-1 text-sm font-medium text-zinc-100'>
+              {offerAmount && offerCurrency
+                ? formatMoney(offerAmount, offerCurrency)
+                : '—'}
+            </div>
+          </div>
+        </div>
+
+        {offerMessage ? (
+          <div className='rounded-2xl border border-white/10 bg-black/20 p-3'>
+            <div className='text-[11px] text-zinc-400'>Offer note</div>
+            <div className='mt-1 text-sm text-zinc-200 whitespace-pre-wrap break-words'>
+              {offerMessage}
+            </div>
+          </div>
+        ) : null}
+      </div>
       <div className='p-4 sm:p-5 h-[55vh] overflow-y-auto space-y-2 bg-black/10'>
         {messages.length === 0 ? (
           <div className='text-sm text-zinc-400'>
@@ -171,4 +215,15 @@ export default function ChatThread({
       </div>
     </div>
   )
+
+  function formatMoney(amount: number, currency: string) {
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: currency.toUpperCase(),
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount}`
+    }
+  }
 }
